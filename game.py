@@ -1,8 +1,17 @@
 import pygame
+import random
 # It's unclear whether we need this next line... comment it out for the time being
 # from pygame.locals import *
 
+ENABLE_SPLASH_SCREENS = False
+DEBUG = True
+
 pygame.init()
+random.seed()
+
+clock = pygame.time.Clock()
+# framerate
+fps = 125
 
 # the width and height of our game window
 screen_width = 1000
@@ -17,6 +26,8 @@ lanes = [
     int(screen_height * 5/6)
 ]
 
+# the fade & redrawWindow thing doesn't want to work... leaving functions here
+# but they're not being called.
 def redrawWindow():
     screen.blit(bg, (0, 0))
 
@@ -60,42 +71,90 @@ class Player(pygame.sprite.Sprite):
             self.change_lane(self.lane)
 
 
+# Create an enemy shape
+class Enemy(pygame.sprite.Sprite):
+    move_amount = 1
+
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.image.load('img/blue_square_enemy.png')
+        # TODO: change to be a rando number
+        self.lane = random.randint(1, 5)
+        # Set a rectangle for the enemy to live in. That way we can move it around later.
+        self.rect = self.image.get_rect()
+        # The coordinates where the rectangle's center should be
+        self.rect.center = [screen_width+150, lanes[self.lane-1]]
+        if DEBUG:
+            print("New enemy created.")
+
+    def move_item(self):
+        self.rect.x -= self.move_amount
+
+
 # Define our game window and give it a title/name
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Shapes 'n' Balls")
 
-# studio logo
-bg = pygame.image.load("img/Gizmo Studios_logo.png")
-screen.blit(bg, (0, 0))
-pygame.display.update()
-# need to touch the event queue or updates/wait/tick won't process.
-pygame.event.pump()
-pygame.time.wait(3000)
-#fade(screen_width, screen_height)
+if ENABLE_SPLASH_SCREENS:
+    # studio logo
+    bg = pygame.image.load("img/Gizmo Studios_logo.png")
+    screen.blit(bg, (0, 0))
+    pygame.display.update()
+    # need to touch the event queue or updates/wait/tick won't process.
+    pygame.event.pump()
+    pygame.time.wait(3000)
+    #fade(screen_width, screen_height)
 
-# made with pygame
-bg = pygame.image.load("img/This game was created with Pygame.png")
-screen.blit(bg, (0, 0))
-pygame.display.update()
-# need to touch the event queue or updates/wait/tick won't process.
-pygame.event.pump()
-pygame.time.wait(3000)
-#fade(screen_width, screen_height)
+    # made with pygame
+    bg = pygame.image.load("img/This game was created with Pygame.png")
+    screen.blit(bg, (0, 0))
+    pygame.display.update()
+    # need to touch the event queue or updates/wait/tick won't process.
+    pygame.event.pump()
+    pygame.time.wait(3000)
+    #fade(screen_width, screen_height)
 
 # Create the player sprite and set its position
 player_group = pygame.sprite.Group()
 player = Player()
 player_group.add(player)
 
+# Create an enemy sprite and set its position
+enemy_group = pygame.sprite.Group()
+
 # Set a background for main gameplay
 bg = pygame.image.load("img/translucent_lake_bg.png")
+
+# get a time before we start the loop
+start = pygame.time.get_ticks()
 
 # Main game loop
 run = True
 while run:
+    clock.tick(fps)
+
+    now = pygame.time.get_ticks()
+    # When 2000 ms have passed.
+    if now - start > 2500:
+        start = now
+        new_enemy = Enemy()
+        enemy_group.add(new_enemy)
+
+    pop_enemy = None
+    for enemy in enemy_group.sprites():
+        enemy.move_item()
+        if enemy.rect.x < -60:
+            pop_enemy = enemy
+
+    if pop_enemy:
+        enemy_group.remove(pop_enemy)
+        if DEBUG:
+            print("POPPED!")
+    
     # Draw the background and the player on every loop
     screen.blit(bg, (0, 0))
     player_group.draw(screen)
+    enemy_group.draw(screen)
 
     # Handle events
     for event in pygame.event.get():
