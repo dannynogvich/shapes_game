@@ -12,10 +12,21 @@ random.seed()
 clock = pygame.time.Clock()
 # framerate
 fps = 125
+game_over = False
+
+# the shape we want to hit for points
+desired_shape = "square"
 
 # the width and height of our game window
 screen_width = 1000
 screen_height = 525
+
+pygame.mixer.init()
+game_over_channel = pygame.mixer.Channel(5)
+
+#Set up the sound effects
+game_over_sound = pygame.mixer.Sound("sounds/game_over_sound_effect.mp3")
+#playsound = pygame.mixer.Sound("sounds/game_over_sound_effect.mp3")
 
 #lane definitions
 lanes = [
@@ -42,20 +53,30 @@ def fade(width, height):
         pygame.time.wait(5)
 
 
-
 # The player is the ball in the center of the screen
 class Player(pygame.sprite.Sprite):
 
     starting_lane = 3
+    player_score = 0
 
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load('img/green_circle.png')
         self.lane = self.starting_lane
-        # Set a rectangle for the player to live in. That way we can move it around later.
+        self.mouth_open()
+
+    def mouth_open(self):
+        self.image = pygame.image.load('img/player_player_mouth_open.png')
         self.rect = self.image.get_rect()
-        # The coordinates where the rectangle's center should be
-        self.rect.center = [int(screen_width / 2), lanes[self.starting_lane-1]]
+        self.rect.center = [int(screen_width / 2), lanes[self.lane-1]]
+
+        self.mouth = 'open'
+        
+    def mouth_closed(self):
+        self.image = pygame.image.load('img/player_player_mouth_closed.png')
+        self.rect = self.image.get_rect()
+        self.rect.center = [int(screen_width / 2), lanes[self.lane-1]]
+
+        self.mouth = 'closed'
 
     def change_lane(self, lane):
         self.rect.center = [int(screen_width / 2), lanes[lane-1]]
@@ -74,11 +95,19 @@ class Player(pygame.sprite.Sprite):
 # Create an enemy shape
 class Enemy(pygame.sprite.Sprite):
     move_amount = 1
+    collided = False
+    images = [
+        { "shape": "square",    "img": "burger_enemy.png"    },
+        { "shape": "triangle",  "img": "fries_enemy.png"  },
+        { "shape": "rectangle", "img": "sub_enemy.png" },
+        { "shape": "circle",    "img": "beverage_enemy.png"    },
+    ]
 
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.image.load('img/blue_square_enemy.png')
-        # TODO: change to be a rando number
+        enemy_data = self.images[random.randint(0, 3)]
+        self.image = pygame.image.load('img/' + enemy_data["img"])
+        self.shape = enemy_data["shape"]
         self.lane = random.randint(1, 5)
         # Set a rectangle for the enemy to live in. That way we can move it around later.
         self.rect = self.image.get_rect()
@@ -125,8 +154,16 @@ enemy_group = pygame.sprite.Group()
 # Set a background for main gameplay
 bg = pygame.image.load("img/translucent_lake_bg.png")
 
+# for text 
+font = pygame.font.Font('freesansbold.ttf', 32)
+game_over_font = pygame.font.Font('freesansbold.ttf', 75)
+
+#Setting up the blurred overlay
+blurred_overlay = pygame.image.load("img/transparent_white.png")
+
 # get a time before we start the loop
 start = pygame.time.get_ticks()
+mouth_timer = pygame.time.get_ticks()
 
 # Main game loop
 run = True
@@ -134,27 +171,53 @@ while run:
     clock.tick(fps)
 
     now = pygame.time.get_ticks()
-    # When 2000 ms have passed.
-    if now - start > 2500:
-        start = now
-        new_enemy = Enemy()
-        enemy_group.add(new_enemy)
+    # When 2500 ms have passed.
+    if not game_over:
+        if now - start > 2500:
+            start = now
+            new_enemy = Enemy()
+            enemy_group.add(new_enemy)
+        if player.mouth == 'closed' and now - mouth_timer > 2000:
+            player.mouth_open()
 
-    pop_enemy = None
-    for enemy in enemy_group.sprites():
-        enemy.move_item()
-        if enemy.rect.x < -60:
-            pop_enemy = enemy
+        for enemy in enemy_group.sprites():
+            if game_over:
+                enemy.kill()
+                continue
+            enemy.move_item()
+            if enemy.rect.x < -60:
+                enemy.kill()
+            if enemy.rect.colliderect(player.rect):
+                if not enemy.collided:
+                    enemy.collided = True
+                    enemy.kill()
+                    if enemy.shape == desired_shape:
+                        player.player_score += 1
+                        player.mouth_closed()
+                        mouth_timer = pygame.time.get_ticks()
 
-    if pop_enemy:
-        enemy_group.remove(pop_enemy)
-        if DEBUG:
-            print("POPPED!")
-    
+                    else:
+                        game_over = True
+                        game_over_timer = pygame.time.get_ticks()
+                    if  DEBUG:
+                        print("collided")
+
     # Draw the background and the player on every loop
     screen.blit(bg, (0, 0))
     player_group.draw(screen)
     enemy_group.draw(screen)
+    score = font.render(str(player.player_score),True,(255,255,255))
+    screen.blit(score, (20,0))
+
+    if game_over:
+        screen.blit(blurred_overlay, (0, 0))
+        player.player_score = 0
+        death_text = game_over_font.render(str("Game Over"),True,(255,0,0))
+        screen.blit(death_text, (300,125))
+        if not game_over_channel.get_busy():
+            game_over_channel.play(game_over_sound)
+        if now - game_over_timer > 1000:
+            game_over = False
 
     # Handle events
     for event in pygame.event.get():
@@ -165,11 +228,12 @@ while run:
             run = False
 
         # Handle player movement
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
-                player.move_up()
-            if event.key == pygame.K_DOWN:
-                player.move_down()
+        if not game_over:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    player.move_up()
+                if event.key == pygame.K_DOWN:
+                    player.move_down()
     
     # Update the display
     pygame.display.update()
