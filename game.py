@@ -10,9 +10,10 @@ pygame.init()
 random.seed()
 
 clock = pygame.time.Clock()
-# framerate
+# starting framerate
 fps = 125
 game_over = False
+level_clear = False
 
 # the shape we want to hit for points
 desired_shape = "square"
@@ -23,10 +24,11 @@ screen_height = 525
 
 pygame.mixer.init()
 game_over_channel = pygame.mixer.Channel(5)
+level_clear_channel = pygame.mixer.Channel(6)
 
 #Set up the sound effects
 game_over_sound = pygame.mixer.Sound("sounds/game_over_sound_effect.mp3")
-#playsound = pygame.mixer.Sound("sounds/game_over_sound_effect.mp3")
+level_clear_sound = pygame.mixer.Sound("sounds/level_clear_sound_effect.mp3")
 
 #lane definitions
 lanes = [
@@ -39,18 +41,18 @@ lanes = [
 
 # the fade & redrawWindow thing doesn't want to work... leaving functions here
 # but they're not being called.
-def redrawWindow():
-    screen.blit(bg, (0, 0))
+# def redrawWindow():
+#     screen.blit(bg, (0, 0))
 
-def fade(width, height): 
-    fade = pygame.Surface((width, height))
-    fade.fill((0,0,0))
-    for alpha in range(0, 300):
-        fade.set_alpha(alpha)
-        redrawWindow()
-        screen.blit(fade, (0,0))
-        pygame.display.update()
-        pygame.time.wait(5)
+# def fade(width, height): 
+#     fade = pygame.Surface((width, height))
+#     fade.fill((0,0,0))
+#     for alpha in range(0, 300):
+#         fade.set_alpha(alpha)
+#         redrawWindow()
+#         screen.blit(fade, (0,0))
+#         pygame.display.update()
+#         pygame.time.wait(5)
 
 
 # The player is the ball in the center of the screen
@@ -157,6 +159,7 @@ bg = pygame.image.load("img/translucent_lake_bg.png")
 # for text 
 font = pygame.font.Font('freesansbold.ttf', 32)
 game_over_font = pygame.font.Font('freesansbold.ttf', 75)
+level_clear_font = pygame.font.Font('freesansbold.ttf', 75)
 
 #Setting up the blurred overlay
 blurred_overlay = pygame.image.load("img/transparent_white.png")
@@ -171,6 +174,11 @@ while run:
     clock.tick(fps)
 
     now = pygame.time.get_ticks()
+
+    if game_over:
+        for enemy in enemy_group.sprites():
+            enemy.kill()
+
     # When 2500 ms have passed.
     if not game_over:
         if now - start > 2500:
@@ -181,9 +189,6 @@ while run:
             player.mouth_open()
 
         for enemy in enemy_group.sprites():
-            if game_over:
-                enemy.kill()
-                continue
             enemy.move_item()
             if enemy.rect.x < -60:
                 enemy.kill()
@@ -202,6 +207,10 @@ while run:
                     if  DEBUG:
                         print("collided")
 
+        if player.player_score == 10:
+            level_clear = True
+
+
     # Draw the background and the player on every loop
     screen.blit(bg, (0, 0))
     player_group.draw(screen)
@@ -218,6 +227,13 @@ while run:
             game_over_channel.play(game_over_sound)
         if now - game_over_timer > 1000:
             game_over = False
+
+    if level_clear:
+        screen.blit(blurred_overlay, (0, 0))
+        level_clear_text = level_clear_font.render(str("Level Clear!"),True,(0,255,255))
+        screen.blit(level_clear_text, (300,125))
+        if not level_clear_channel.get_busy():
+            level_clear_channel.play(level_clear_sound)
 
     # Handle events
     for event in pygame.event.get():
