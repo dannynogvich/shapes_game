@@ -160,6 +160,7 @@ bg = pygame.image.load("img/translucent_lake_bg.png")
 font = pygame.font.Font('freesansbold.ttf', 32)
 game_over_font = pygame.font.Font('freesansbold.ttf', 75)
 level_clear_font = pygame.font.Font('freesansbold.ttf', 75)
+game_over_option_1_font = pygame.font.Font('freesansbold.ttf', 15)
 
 #Setting up the blurred overlay
 blurred_overlay = pygame.image.load("img/transparent_white.png")
@@ -190,7 +191,7 @@ while run:
 
         for enemy in enemy_group.sprites():
             enemy.move_item()
-            if enemy.rect.x < -60:
+            if enemy.rect.x < -160:
                 enemy.kill()
             if enemy.rect.colliderect(player.rect):
                 if not enemy.collided:
@@ -203,6 +204,7 @@ while run:
 
                     else:
                         game_over = True
+                        game_over_playsound = True
                         game_over_timer = pygame.time.get_ticks()
                     if  DEBUG:
                         print("collided")
@@ -222,11 +224,14 @@ while run:
         screen.blit(blurred_overlay, (0, 0))
         player.player_score = 0
         death_text = game_over_font.render(str("Game Over"),True,(255,0,0))
+        game_over_option_1_text = game_over_option_1_font.render(str("Press Any Key to Play Again"), True, (255, 255, 255))
         screen.blit(death_text, (300,125))
-        if not game_over_channel.get_busy():
+        screen.blit(game_over_option_1_text, (400, 275))
+        if game_over_playsound:
+            game_over_playsound = False
             game_over_channel.play(game_over_sound)
-        if now - game_over_timer > 1000:
-            game_over = False
+#        if now - game_over_timer > 1000:
+#           game_over = False
 
     if level_clear:
         screen.blit(blurred_overlay, (0, 0))
@@ -244,12 +249,13 @@ while run:
             run = False
 
         # Handle player movement
-        if not game_over:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_UP:
-                    player.move_up()
-                if event.key == pygame.K_DOWN:
-                    player.move_down()
+        if event.type == pygame.KEYDOWN:
+            if game_over:
+                game_over = False
+            elif event.key == pygame.K_UP:
+                player.move_up()
+            elif event.key == pygame.K_DOWN:
+                player.move_down()
     
     # Update the display
     pygame.display.update()
