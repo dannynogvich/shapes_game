@@ -1,7 +1,5 @@
 import pygame
 import random
-# It's unclear whether we need this next line... comment it out for the time being
-# from pygame.locals import *
 
 ENABLE_SPLASH_SCREENS = False
 DEBUG = True
@@ -38,22 +36,6 @@ lanes = [
     int(screen_height * 4/6),
     int(screen_height * 5/6)
 ]
-
-# the fade & redrawWindow thing doesn't want to work... leaving functions here
-# but they're not being called.
-# def redrawWindow():
-#     screen.blit(bg, (0, 0))
-
-# def fade(width, height): 
-#     fade = pygame.Surface((width, height))
-#     fade.fill((0,0,0))
-#     for alpha in range(0, 300):
-#         fade.set_alpha(alpha)
-#         redrawWindow()
-#         screen.blit(fade, (0,0))
-#         pygame.display.update()
-#         pygame.time.wait(5)
-
 
 # The player is the ball in the center of the screen
 class Player(pygame.sprite.Sprite):
@@ -134,7 +116,6 @@ if ENABLE_SPLASH_SCREENS:
     # need to touch the event queue or updates/wait/tick won't process.
     pygame.event.pump()
     pygame.time.wait(3000)
-    #fade(screen_width, screen_height)
 
     # made with pygame
     bg = pygame.image.load("img/This game was created with Pygame.png")
@@ -143,7 +124,6 @@ if ENABLE_SPLASH_SCREENS:
     # need to touch the event queue or updates/wait/tick won't process.
     pygame.event.pump()
     pygame.time.wait(3000)
-    #fade(screen_width, screen_height)
 
 # Create the player sprite and set its position
 player_group = pygame.sprite.Group()
@@ -209,7 +189,7 @@ while run:
                     if  DEBUG:
                         print("collided")
 
-        if player.player_score == 10:
+        if player.player_score == 1:
             level_clear = True
 
 
@@ -230,8 +210,6 @@ while run:
         if game_over_playsound:
             game_over_playsound = False
             game_over_channel.play(game_over_sound)
-#        if now - game_over_timer > 1000:
-#           game_over = False
 
     if level_clear:
         screen.blit(blurred_overlay, (0, 0))
@@ -239,6 +217,7 @@ while run:
         screen.blit(level_clear_text, (300,125))
         if not level_clear_channel.get_busy():
             level_clear_channel.play(level_clear_sound)
+            
 
     # Handle events
     for event in pygame.event.get():
