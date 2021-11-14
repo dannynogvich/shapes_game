@@ -1,4 +1,5 @@
 import pygame
+from pygame import mixer
 import random
 
 ENABLE_SPLASH_SCREENS = False
@@ -6,6 +7,9 @@ DEBUG = True
 
 pygame.init()
 random.seed()
+
+# how many ms between enemy spawns
+enemy_frequency=1000
 
 clock = pygame.time.Clock()
 # starting framerate
@@ -20,13 +24,13 @@ desired_shape = "square"
 screen_width = 1000
 screen_height = 525
 
-pygame.mixer.init()
-game_over_channel = pygame.mixer.Channel(5)
-level_clear_channel = pygame.mixer.Channel(6)
+mixer.init()
+game_over_channel = mixer.Channel(5)
+level_clear_channel = mixer.Channel(6)
 
 #Set up the sound effects
-game_over_sound = pygame.mixer.Sound("sounds/game_over_sound_effect.mp3")
-level_clear_sound = pygame.mixer.Sound("sounds/level_clear_sound_effect.mp3")
+game_over_sound = mixer.Sound("sounds/game_over_sound_effect.mp3")
+level_clear_sound = mixer.Sound("sounds/level_clear_sound_effect.mp3")
 
 #lane definitions
 lanes = [
@@ -78,7 +82,7 @@ class Player(pygame.sprite.Sprite):
 
 # Create an enemy shape
 class Enemy(pygame.sprite.Sprite):
-    move_amount = 1
+    move_amount = 3
     collided = False
     images = [
         { "shape": "square",    "img": "burger_enemy.png"    },
@@ -141,6 +145,7 @@ font = pygame.font.Font('freesansbold.ttf', 32)
 game_over_font = pygame.font.Font('freesansbold.ttf', 75)
 level_clear_font = pygame.font.Font('freesansbold.ttf', 75)
 game_over_option_1_font = pygame.font.Font('freesansbold.ttf', 15)
+level_clear_option_1_font = pygame.font.Font('freesansbold.ttf', 15)
 
 #Setting up the blurred overlay
 blurred_overlay = pygame.image.load("img/transparent_white.png")
@@ -156,17 +161,17 @@ while run:
 
     now = pygame.time.get_ticks()
 
-    if game_over:
+    if game_over or level_clear:
         for enemy in enemy_group.sprites():
             enemy.kill()
 
-    # When 2500 ms have passed.
+    # When the enemy frequency ms have passed.
     if not game_over:
-        if now - start > 2500:
+        if now - start > enemy_frequency:
             start = now
             new_enemy = Enemy()
             enemy_group.add(new_enemy)
-        if player.mouth == 'closed' and now - mouth_timer > 2000:
+        if player.mouth == 'closed' and now - mouth_timer > (enemy_frequency * 0.8):
             player.mouth_open()
 
         for enemy in enemy_group.sprites():
@@ -189,8 +194,11 @@ while run:
                     if  DEBUG:
                         print("collided")
 
-        if player.player_score == 1:
+        if player.player_score == 2:
+            player.player_score = 0
             level_clear = True
+            level_clear_playsound = True
+            level_clear_timer = pygame.time.get_ticks()
 
 
     # Draw the background and the player on every loop
@@ -214,8 +222,11 @@ while run:
     if level_clear:
         screen.blit(blurred_overlay, (0, 0))
         level_clear_text = level_clear_font.render(str("Level Clear!"),True,(0,255,255))
+        level_clear_option_1_text = level_clear_option_1_font.render(str("Press Any Key to Play Again"), True, (255, 255, 255))
         screen.blit(level_clear_text, (300,125))
-        if not level_clear_channel.get_busy():
+        screen.blit(level_clear_option_1_text, (400, 275))
+        if level_clear_playsound:
+            level_clear_playsound = False
             level_clear_channel.play(level_clear_sound)
             
 
@@ -231,6 +242,8 @@ while run:
         if event.type == pygame.KEYDOWN:
             if game_over:
                 game_over = False
+            elif level_clear:
+                level_clear = False
             elif event.key == pygame.K_UP:
                 player.move_up()
             elif event.key == pygame.K_DOWN:
